@@ -27,9 +27,10 @@ def main():
     data_dir = os.path.join(os.path.dirname(__file__), "data")
     negative_path = os.path.join(data_dir, "negativve_data.csv")
     positive_path = os.path.join(data_dir, "positive_data.csv")
-    output_path = os.path.join(data_dir, "sampled_data.csv")
+    output_path = os.path.join(data_dir, "sampled_data_1.csv")
 
-    random.seed(42)
+    random.seed(43)
+    # random.seed(42)
 
     neg_fields, neg_rows = read_rows(negative_path)
     pos_fields, pos_rows = read_rows(positive_path)

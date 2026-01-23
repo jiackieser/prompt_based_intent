@@ -10,18 +10,24 @@ from prompt_templates import SYSTEM_PROMPT, build_user_prompt
 load_dotenv()
 
 # 使用本地部署的 Qwen 模型
+# 注意：OpenAI SDK 的 base_url 需要指向 API 根路径（通常以 /v1 结尾），
+# SDK 会自动拼接 /chat/completions；如果把 /chat/completions 写进 base_url 会导致 404。
 BASE_URL = "https://vllm-qwen3.vertu.cn/v1"
-MODEL_NAME = "vemory_1_2w_pt"
+MODEL_NAME = "/root/autodl-tmp/Qwen3-30B-A3B-Instruct-2507-Int4-W4A16"
 
 # 本地模型不需要 API Key，使用占位符
 client = OpenAI(api_key="EMPTY", base_url=BASE_URL)
 
-def call_qianwen(history1, history2, question):
+def call_qianwen(history_qas, question):
     """·
-    将 history1、history2、question 拼接后作为千问大模型的输入，
+    将 history_qas（历史对话列表）和 question 拼接后作为千问大模型的输入，
     返回模型生成的结果。
+    
+    Args:
+        history_qas: list，每个元素需有 question 和 answer 属性
+        question: str，当前查询
     """
-    prompt = build_user_prompt(history1, history2, question)
+    prompt = build_user_prompt(history_qas, question)
     
     completion = client.chat.completions.create(
         model=MODEL_NAME,
@@ -63,9 +69,9 @@ def compute_accuracy(model_outputs, golden_rewrites):
     return correct / len(golden_rewrites)
 
 def main():
-    # 假设 CSV 文件名为 data/sampled_data.csv，编码为 UTF-8
-    csv_file = os.path.join("data", "sampled_data.csv")
-    output_file = os.path.join("data", "sample_records_1.csv")
+    # 假设 CSV 文件名为 data/sampled_data_1.csv，编码为 UTF-8
+    csv_file = os.path.join("data", "sampled_data_1.csv")
+    output_file = os.path.join("data", "sample_records_10.csv")
     
     # 存放模型输出的列表
     model_outputs = []
@@ -80,13 +86,23 @@ def main():
         rows = list(reader)
 
     for idx, row in enumerate(rows, start=1):
+        if idx > 500:
+            break
         history1 = row["history1"]
         history2 = row["history2"]
         question = row["question"]
         rewrite = row["rewrite"]
 
+        # 构造历史对话列表，使用简单的对象来存储
+        class HistoryItem:
+            def __init__(self, question, answer):
+                self.question = question
+                self.answer = answer
+        
+        history_qas = [HistoryItem(history1, history2)]
+        
         # 调用模型获取输出
-        model_reply = call_qianwen(history1, history2, question)
+        model_reply = call_qianwen(history_qas, question)
 
         model_outputs.append(model_reply)
         golden_rewrites.append(rewrite)

@@ -1,8 +1,24 @@
 import csv
+import math
 import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from scipy import stats
+import jieba
+
+
+SEMANTIC_RELATED_LABEL = "1"
+SEMANTIC_UNRELATED_LABEL = "0"
+
+
+def jieba_exact_tokens(text: str) -> list[str]:
+    tokens = []
+    for token in jieba.cut(text, cut_all=False):  # 精确模式
+        token = (token or "").strip()
+        if token:
+            tokens.append(token)
+    return tokens
 
 load_dotenv()
 
@@ -18,14 +34,17 @@ SYSTEM_PROMPT = (
     "你是一个专业的语义相关性判定专家。\n\n"
 
     "# 任务说明\n"
-    "判断以下两段文本是否具有语义相关性。\n\n"
+    "判断待比较文本（model_output）与参考文本（rewrite）是否具有语义相关性。\n\n"
 
     "# 判断标准\n"
     "- **输出 1**：两段文本表达的核心语义相同或高度相关\n"
-    "  - 即使措辞不同，但传达的意思一致\n"
+    "  - 措辞完全相同，传达的意思一致\n"
+    "  - 如果model_output，question，rewrite都完全一致，必须输出1\n"
     "  - 关键实体和关系保持一致\n\n"
+
     "- **输出 0**：两段文本语义不相关或相关性较弱\n"
     "  - 添加额外的文本标点符号\n"
+    "  - model_output中包含任何指代词（如'他''她''它''这个''那个'）\n"
     "  - 表达的主题或意图完全不同\n"
     "  - 关键实体或关系发生改变\n\n"
 
@@ -36,6 +55,9 @@ SYSTEM_PROMPT = (
 # 用户提示词模板
 USER_PROMPT_TEMPLATE = """
 # 待判断文本
+## 原始问题（question）：
+{question}
+
 ## 参考文本（rewrite）：
 {rewrite}
 
@@ -47,11 +69,12 @@ USER_PROMPT_TEMPLATE = """
 """
 
 
-def semantic_judge(rewrite: str, model_output: str) -> str:
+def semantic_judge(question: str, rewrite: str, model_output: str) -> str:
     """
     判断两段文本的语义相关性
     
     Args:
+        question: 原始问题
         rewrite: 参考文本
         model_output: 待比较文本
     
@@ -59,6 +82,7 @@ def semantic_judge(rewrite: str, model_output: str) -> str:
         "0" 或 "1"
     """
     prompt = USER_PROMPT_TEMPLATE.format(
+        question=question,
         rewrite=rewrite,
         model_output=model_output
     )
@@ -80,17 +104,18 @@ def semantic_judge(rewrite: str, model_output: str) -> str:
     return "0"  # 默认返回0
 
 
+
 def main(): 
-    input_file = r"data\sample_records_1.csv"
-    output_file = r"data\sample_records_1.csv"
+    input_file = r"data\sample_records_10.csv"
+    output_file = r"data\sample_records_10.csv"
 
     with open(input_file, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         fieldnames = list(reader.fieldnames or [])
 
-    if "rewrite" not in fieldnames or "model_output" not in fieldnames:
-        raise ValueError("CSV缺少rewrite或model_output列")
+    if "question" not in fieldnames or "rewrite" not in fieldnames or "model_output" not in fieldnames:
+        raise ValueError("CSV缺少question、rewrite或model_output列")
 
     result_col = "semantic_related"
     if result_col not in fieldnames:
@@ -100,17 +125,30 @@ def main():
     total_count = 0
 
     for row in rows:
+        question = row.get("question", "")
         rewrite = row.get("rewrite", "")
         model_output = row.get("model_output", "")
         if not rewrite and not model_output:
             row[result_col] = ""
             continue
 
-        label = semantic_judge(rewrite, model_output)
+        # 在调用模型前，先用jieba精确模式对 rewrite/model_output 分词并做完全匹配
+        # 若无法完全匹配，直接判为语义不相关（跳过模型调用）
+        rewrite_tokens = jieba_exact_tokens(rewrite)
+        model_tokens = jieba_exact_tokens(model_output)
+        if rewrite_tokens != model_tokens:
+            label = SEMANTIC_UNRELATED_LABEL
+            row[result_col] = label
+
+            total_count += 1
+            # label 为 0 不计入 related_count
+            continue
+
+        label = semantic_judge(question, rewrite, model_output)
         row[result_col] = label
 
         total_count += 1
-        if label == "1":
+        if label == SEMANTIC_RELATED_LABEL:
             related_count += 1
 
     with open(output_file, "w", encoding="utf-8", newline="") as f:
@@ -119,7 +157,7 @@ def main():
         writer.writerows(rows)
 
     ratio = (related_count / total_count) if total_count else 0.0
-    print(f"语义相关占比: {ratio:.4f} ({related_count}/{total_count})")
+    print(f"语义准确率: {ratio:.4f} ({related_count}/{total_count})")
 
 
 if __name__ == "__main__":
