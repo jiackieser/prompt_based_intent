@@ -106,8 +106,8 @@ def semantic_judge(question: str, rewrite: str, model_output: str) -> str:
 
 
 def main(): 
-    input_file = r"data\sample_records_10.csv"
-    output_file = r"data\sample_records_10.csv"
+    input_file = r"data\sample_records_only_pos_qwen3maxthinking.csv"
+    output_file = r"data\sample_records_only_pos_qwen3maxthinking.csv"
 
     with open(input_file, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
@@ -133,7 +133,6 @@ def main():
             continue
 
         # 在调用模型前，先用jieba精确模式对 rewrite/model_output 分词并做完全匹配
-        # 若无法完全匹配，直接判为语义不相关（跳过模型调用）
         rewrite_tokens = jieba_exact_tokens(rewrite)
         model_tokens = jieba_exact_tokens(model_output)
         if rewrite_tokens != model_tokens:
@@ -142,12 +141,16 @@ def main():
 
             total_count += 1
             # label 为 0 不计入 related_count
-            continue
+        else:
+            label = SEMANTIC_RELATED_LABEL
+            row[result_col] = label
+            
+            total_count += 1
 
-        label = semantic_judge(question, rewrite, model_output)
-        row[result_col] = label
+        # label = semantic_judge(question, rewrite, model_output)
+        # row[result_col] = label
 
-        total_count += 1
+
         if label == SEMANTIC_RELATED_LABEL:
             related_count += 1
 
@@ -157,7 +160,7 @@ def main():
         writer.writerows(rows)
 
     ratio = (related_count / total_count) if total_count else 0.0
-    print(f"语义准确率: {ratio:.4f} ({related_count}/{total_count})")
+    print(f"准确率(jieba): {ratio:.4f} ({related_count}/{total_count})")
 
 
 if __name__ == "__main__":
