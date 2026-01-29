@@ -1,21 +1,29 @@
 import csv
 import os
 import unicodedata
+import dotenv
 
-from dotenv import load_dotenv
 from openai import OpenAI
 from prompt_templates import SYSTEM_PROMPT, build_user_prompt
 
-# 自动加载 .env 文件中的环境变量
-load_dotenv()
+dotenv.load_dotenv()
+
 
 # 使用本地部署的 Qwen 模型
 # 注意：OpenAI SDK 的 base_url 需要指向 API 根路径（通常以 /v1 结尾），
 # SDK 会自动拼接 /chat/completions；如果把 /chat/completions 写进 base_url 会导致 404。
 BASE_URL = "https://vllm-qwen3.vertu.cn/v1"
-MODEL_NAME = "/root/autodl-tmp/Qwen3-30B-A3B-Instruct-2507-Int4-W4A16"
+MODEL_NAME = "/root/autodl-tmp/Qwen3-30B-A3B-Instruct-2507-Int4-W4A16"  
 
 # 本地模型不需要 API Key，使用占位符
+# client = OpenAI(api_key="EMPTY", base_url=BASE_URL)
+
+# 从环境变量读取配置
+# API_KEY = os.getenv("QWEN_API_KEY")
+# BASE_URL = os.getenv("QWEN_BASE_URL")
+# MODEL_NAME = os.getenv("QWEN_MODEL_NAME")
+
+# 初始化客户端
 client = OpenAI(api_key="EMPTY", base_url=BASE_URL)
 
 def call_qianwen(history_qas, question):
@@ -70,8 +78,8 @@ def compute_accuracy(model_outputs, golden_rewrites):
 
 def main():
     # 假设 CSV 文件名为 data/sampled_data_1.csv，编码为 UTF-8
-    csv_file = os.path.join("data", "sampled_data_1.csv")
-    output_file = os.path.join("data", "sample_records_10.csv")
+    csv_file = os.path.join("data", "sampled_data_only_pos.csv")
+    output_file = os.path.join("data", "sample_records_only_pos_qwen_30b.csv")
     
     # 存放模型输出的列表
     model_outputs = []
@@ -86,8 +94,8 @@ def main():
         rows = list(reader)
 
     for idx, row in enumerate(rows, start=1):
-        if idx > 500:
-            break
+        # if idx > 500:
+        #     break
         history1 = row["history1"]
         history2 = row["history2"]
         question = row["question"]
