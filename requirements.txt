@@ -5,3 +5,4 @@ python-dotenv==1.2.1
 scipy==1.15.3
 uvicorn==0.40.0
 fastapi==0.128.0
+pandas==2.3.3
