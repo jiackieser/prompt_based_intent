@@ -47,6 +47,24 @@ def call_qianwen(history_qas, question):
 
     return completion.choices[0].message.content
 
+
+def intent_recognize(query, intent_system_content):
+    """
+    意图识别LLM 方案
+    Args:
+        query: str，用户查询
+        intent_system_content: str，意图识别系统内容
+    """
+    completion = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": intent_system_content},
+            {"role": "user", "content": query}
+        ],
+    )
+
+    return completion.choices[0].message.content
+
 def normalize_text(text):
     """
     去掉空白字符和所有 Unicode 标点符号。
