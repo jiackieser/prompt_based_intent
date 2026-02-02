@@ -1,4 +1,5 @@
 from typing import Dict, Any
+import os
 from keyword_extractor import KeywordExtractor
 from emotion_analyzer import EmotionAnalyzer
 
@@ -6,14 +7,15 @@ class CustomerServiceJudge:
     def __init__(self, keyword_list):
         self.keyword_extractor = KeywordExtractor(keyword_list)
         self.emotion_analyzer = EmotionAnalyzer()
-        # 从文件加载人工服务相关关键词
         self.manual_service_keywords = self._load_manual_service_keywords()
     
     def _load_manual_service_keywords(self):
         """从文件加载人工服务关键词"""
         keywords = []
         try:
-            with open('manual_service_keywords.txt', 'r', encoding='utf-8') as f:
+            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            keyword_path = os.path.join(BASE_DIR, 'manual_service_keywords.txt')
+            with open(keyword_path, 'r', encoding='utf-8') as f:
                 keywords = [line.strip() for line in f if line.strip()]
         except FileNotFoundError:
             print("警告：未找到manual_service_keywords.txt文件，使用默认关键词")
