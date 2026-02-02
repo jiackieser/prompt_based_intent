@@ -9,6 +9,8 @@ from typing import Optional
 import uvicorn
 
 from openai import OpenAI
+from fastapi.middleware.cors import CORSMiddleware
+
 from prompt_templates import SYSTEM_PROMPT, build_user_prompt
 from risk_detect.api import RiskResponse, QueryRequest, judge
 
@@ -18,6 +20,7 @@ app = FastAPI(
     description="提供基于 Qwen 模型的对话查询改写服务",
     version="1.0.0"
 )
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # 配置本地模型
 BASE_URL = "https://vllm-qwen3.vertu.cn/v1"
