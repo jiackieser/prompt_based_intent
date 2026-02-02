@@ -239,6 +239,12 @@ async def batch_rewrite(requests: list[QueryRewriteRequest]):
     return {"results": results, "total": len(results)}
 
 
+@app.get("/api/risk_detect")
+async def risk_detect():
+    """风险预测接口"""
+
+    return {"status": "healthy", "model": MODEL_NAME}
+
 # ========== 启动服务 ==========
 
 if __name__ == "__main__":
