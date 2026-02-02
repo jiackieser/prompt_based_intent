@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  intent_risk_recognizer_rewriter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: intent_risk_recognizer_rewriter
+    ports:
+      - "9001:8000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ../:/app
+    restart: unless-stopped
+    networks:
+      - local-network
+
+# Custom network for service communication
+networks:
+  local-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
