@@ -1,7 +1,7 @@
 from typing import Dict, Any
 import os
-from keyword_extractor import KeywordExtractor
-from emotion_analyzer import EmotionAnalyzer
+from risk_detect.keyword_extractor import KeywordExtractor
+from risk_detect.emotion_analyzer import EmotionAnalyzer
 
 class CustomerServiceJudge:
     def __init__(self, keyword_list):

@@ -1,7 +1,7 @@
 import requests
 import json
 from typing import Dict, Any
-from config import Config
+from risk_detect.config import Config
 
 class EmotionAnalyzer:
     def __init__(self):

@@ -10,6 +10,7 @@ import uvicorn
 
 from openai import OpenAI
 from prompt_templates import SYSTEM_PROMPT, build_user_prompt
+from risk_detect.api import RiskResponse, QueryRequest, judge
 
 # 初始化 FastAPI 应用
 app = FastAPI(
@@ -244,6 +245,36 @@ async def risk_detect():
     """风险预测接口"""
 
     return {"status": "healthy", "model": MODEL_NAME}
+
+
+@app.post(
+    "/api/risk_detect",
+    response_model=RiskResponse,
+    summary="检测用户查询是否存在风险",
+    description="接收用户查询，返回是否存在风险（购买意愿下降或投诉情绪）"
+)
+async def detect_risk(request: QueryRequest):
+    """
+    检测用户查询是否存在风险
+
+    - **query**: 用户输入的查询文本
+
+    返回:
+    - **is_risk**: 是否存在风险 (true/false)
+    - **query**: 原始用户查询
+    """
+    if not request.query or not request.query.strip():
+        raise HTTPException(status_code=400, detail="查询内容不能为空")
+
+    try:
+        result = judge.judge_with_details(request.query)
+
+        return RiskResponse(
+            is_risk=result['final_result'],
+            query=request.query
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"检测失败: {str(e)}")
 
 # ========== 启动服务 ==========
 
