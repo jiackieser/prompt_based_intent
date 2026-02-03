@@ -1,7 +1,12 @@
 import os
+import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from risk_detect.judge import CustomerServiceJudge
 import uvicorn
 

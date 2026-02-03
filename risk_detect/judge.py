@@ -49,6 +49,7 @@ class CustomerServiceJudge:
         emotion_result = self.emotion_analyzer.analyze_emotion_with_details(user_query, context)
         emotion_match = emotion_result['is_complaint']
 
+        """综合判断最终结果，只有当关键词匹配且情感分析结果为投诉时才为True"""
         final_result = keyword_match and emotion_match
         
         # 检查是否达到累计调用次数限制

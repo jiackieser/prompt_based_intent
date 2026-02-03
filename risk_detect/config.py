@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    QWEN_API_KEY = os.getenv('QWEN_API_KEY', '')
-    QWEN_API_URL = os.getenv('QWEN_API_URL', 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation')
-    QWEN_MODEL = os.getenv('QWEN_MODEL', 'qwen3-max-2026-01-23')
+    QWEN_API_KEY = os.getenv('QWEN_API_KEY', 'EMPTY')
+    QWEN_API_URL = os.getenv('QWEN_API_URL', 'https://vllm-qwen3.vertu.cn/v1')
+    QWEN_MODEL = os.getenv('QWEN_MODEL', '/root/autodl-tmp/Qwen3-30B-A3B-Instruct-2507-Int4-W4A16')
     EMOTION_ANALYZER_SYSTEM_PROMPT = """
 你是一个专业的AI销售分析助手，任务是仅基于用户当前输入的文本内容，精准识别是否出现购买意愿下降或投诉情绪。仅从当前query的字面表达进行判断。如果用户查询中是与销售话题无关的内容，直接返回false。
 

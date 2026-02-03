@@ -1,6 +1,7 @@
 import requests
 import json
 from typing import Dict, Any
+from openai import OpenAI
 from risk_detect.config import Config
 
 class EmotionAnalyzer:
@@ -10,6 +11,33 @@ class EmotionAnalyzer:
         self.api_url = Config.QWEN_API_URL
         self.model = Config.QWEN_MODEL
         self.c_tolerance = 2
+        
+        # 初始化本地模型客户端
+        self.local_client = OpenAI(
+            api_key="EMPTY",
+            base_url=self.api_url
+        )
+        self.local_model = self.model
+    
+    def _call_local_model(self, prompt: str) -> Dict[str, Any]:
+        try:
+            response = self.local_client.chat.completions.create(
+                model=self.local_model,
+                messages=[
+                    {"role": "system", "content": Config.EMOTION_ANALYZER_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+            )
+            return {
+                "output": {
+                    "choices": [
+                        {"message": {"content": response.choices[0].message.content}}
+                    ]
+                }
+            }
+        except Exception as e:
+            raise Exception(f"本地模型调用失败: {str(e)}")
     
     def _call_qwen_api(self, prompt: str) -> Dict[str, Any]:
         headers = {
@@ -75,7 +103,8 @@ class EmotionAnalyzer:
             prompt = f"用户消息：{query}\n"
         
         try:
-            result = self._call_qwen_api(prompt)
+            #在这里修改使用本地模型还是qwen api
+            result = self._call_local_model(prompt)
             
             if 'output' in result and 'choices' in result['output']:
                 content = result['output']['choices'][0]['message']['content'].strip().lower()

@@ -106,12 +106,11 @@ async def rewrite_query(request: QueryRewriteRequest):
             raise HTTPException(status_code=400, detail="param_pairs 不能为空")
         
         # 获取窗口大小，默认为1
-        window_size = 5
+        window_size = 1
         if request.context and request.context.window_size:
             window_size = request.context.window_size
         
         # 根据窗口大小获取历史对话
-        # 只取最近的 window_size 轮对话
         recent_pairs = request.param_pairs
         
         # 提取历史信息和当前问题
@@ -121,24 +120,13 @@ async def rewrite_query(request: QueryRewriteRequest):
         # 最后一轮是当前问题
         current_question = recent_pairs[-1].question
         
-        # 前面的所有轮次作为历史
+        # 获取历史对话（排除最后一轮当前查询）
         if len(recent_pairs) > 1:
-            # 将所有历史对话拼接成字符串
-            history_parts = []
-            for i, pair in enumerate(recent_pairs[:-1]):
-                history_parts.append(f"User: {pair.question}")
-                history_parts.append(f"System: {pair.answer}")
-            
-            # 为了兼容 build_user_prompt 函数，我们需要分别提取
-            # 这里简化处理：取最近一轮历史
-            history1 = recent_pairs[-2].question
-            history2 = recent_pairs[-2].answer
+            # 取最近 window_size 轮历史
+            history_qas = recent_pairs[:-1][-window_size:]
         else:
             # 只有一轮对话，没有历史
-            history1 = ""
-            history2 = ""
-        
-        history_qas = recent_pairs[-2:-6:-1]
+            history_qas = []
         # 构建提示词
         prompt = build_user_prompt(history_qas, current_question)
         
@@ -191,8 +179,8 @@ async def batch_rewrite(requests: list[QueryRewriteRequest]):
             if req.context and req.context.window_size:
                 window_size = req.context.window_size
             
-            # 根据窗口大小获取历史对话
-            recent_pairs = req.param_pairs[-window_size:] if len(req.param_pairs) >= window_size else req.param_pairs
+            # 获取所有对话对
+            recent_pairs = req.param_pairs
             
             # 提取历史信息和当前问题
             if len(recent_pairs) == 0:
@@ -207,17 +195,15 @@ async def batch_rewrite(requests: list[QueryRewriteRequest]):
             # 最后一轮是当前问题
             current_question = recent_pairs[-1].question
             
-            # 前面的所有轮次作为历史
+            # 获取历史对话（排除最后一轮当前查询）
             if len(recent_pairs) > 1:
-                # 取最近一轮历史
-                history1 = recent_pairs[-2].question
-                history2 = recent_pairs[-2].answer
+                # 取最近 window_size 轮历史
+                history_qas = recent_pairs[:-1][-window_size:]
             else:
                 # 只有一轮对话，没有历史
-                history1 = ""
-                history2 = ""
+                history_qas = []
             
-            prompt = build_user_prompt(history1, history2, current_question)
+            prompt = build_user_prompt(history_qas, current_question)
             completion = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
