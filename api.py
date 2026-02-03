@@ -35,7 +35,6 @@ class ParamPair(BaseModel):
     question: str = Field(..., description="用户问题")
     answer: str = Field(..., description="系统回答")
 
-
 class ContextInfo(BaseModel):
     """上下文信息"""
     window_size: int = Field(1, description="对话窗口大小")
@@ -45,6 +44,7 @@ class ContextInfo(BaseModel):
 class QueryRewriteRequest(BaseModel):
     """查询改写请求"""
     param_pairs: list[ParamPair] = Field(..., description="对话历史")
+    query: str = Field(..., description="用户当前查询")
     context: Optional[ContextInfo] = Field(None, description="上下文信息")
     
     class Config:
@@ -52,10 +52,11 @@ class QueryRewriteRequest(BaseModel):
             "example": {
                 "param_pairs": [
                     {
-                        "question": "这个手机能干什么",
+                        "question": "给我介绍一下SIGNATURE眼镜蛇手机",
                         "answer": "SIGNATURE眼镜蛇手机是VERTU与宝诗龙联合推出的豪华收藏品"
                     }
                 ],
+                "query": "这个手机多少钱",
                 "context": {
                     "window_size": 1,
                     "timestamp": "2026-01-22T15:35:20.123456"
@@ -102,8 +103,7 @@ async def rewrite_query(request: QueryRewriteRequest):
     根据对话历史，将用户的当前查询改写为独立、完整的搜索查询
     """
     try:
-        if not request.param_pairs:
-            raise HTTPException(status_code=400, detail="param_pairs 不能为空")
+        # param_pairs 可以为空，表示没有历史对话
         
         # 获取窗口大小，默认为1
         window_size = 1
@@ -113,19 +113,15 @@ async def rewrite_query(request: QueryRewriteRequest):
         # 根据窗口大小获取历史对话
         recent_pairs = request.param_pairs
         
-        # 提取历史信息和当前问题
-        if len(recent_pairs) == 0:
-            raise HTTPException(status_code=400, detail="至少需要一轮对话")
-        
-        # 最后一轮是当前问题
-        current_question = recent_pairs[-1].question
-        
-        # 获取历史对话（排除最后一轮当前查询）
-        if len(recent_pairs) > 1:
+        # 当前查询从 request.query 获取
+        current_question = request.query
+
+        # 获取历史对话（param_pairs 全部是历史对话）
+        if len(recent_pairs) >= 1:
             # 取最近 window_size 轮历史
-            history_qas = recent_pairs[:-1][-window_size:]
+            history_qas = recent_pairs[-window_size:]
         else:
-            # 只有一轮对话，没有历史
+            # 没有历史
             history_qas = []
         # 构建提示词
         prompt = build_user_prompt(history_qas, current_question)
