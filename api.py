@@ -12,7 +12,7 @@ from openai import OpenAI
 from fastapi.middleware.cors import CORSMiddleware
 
 from prompt_templates import SYSTEM_PROMPT, build_user_prompt
-from risk_detect.api import RiskResponse, QueryRequest, judge
+from risk_detect.api import RiskResponse, QueryRequest, judge, send_wechat_group_notification
 
 # 初始化 FastAPI 应用
 app = FastAPI(
@@ -253,6 +253,17 @@ async def detect_risk(request: QueryRequest):
 
     try:
         result = judge.judge_with_details(request.query)
+
+        if result['final_result']:
+            notification_content = f"检测到需要转人工服务：\n用户问题：{request.query}"
+            if result['manual_service_requested']:
+                notification_content = f"用户主动要求转人工：\n用户问题：{request.query}"
+            elif result['price_related_query']:
+                notification_content = f"用户询问价格优惠：\n用户问题：{request.query}"
+            elif result['matched_keywords']:
+                notification_content = f"检测到投诉风险：\n用户问题：{request.query}\n匹配关键词：{result['matched_keywords']}"
+            
+            await send_wechat_group_notification(notification_content)
 
         return RiskResponse(
             is_risk=result['final_result'],
