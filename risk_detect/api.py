@@ -1,14 +1,23 @@
 import os
 import sys
+import asyncio
+import logging
+import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from risk_detect.judge import CustomerServiceJudge
 import uvicorn
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="智能客服风险检测API",
@@ -29,6 +38,46 @@ except FileNotFoundError:
     print("警告：未找到keywords.txt文件，使用空关键词列表")
 
 judge = CustomerServiceJudge(keyword_list)
+
+
+async def send_wechat_group_notification(content: str, group_name: str = None) -> bool:
+    """发送微信群通知。
+    
+    Args:
+        content: 通知内容
+        group_name: 群名称，默认从环境变量读取
+        
+    Returns:
+        bool: 发送是否成功
+    """
+    url = os.getenv("WECHAT_API_URL", "")
+    headers = {
+        "Authorization": os.getenv("WECHAT_AUTHORIZATION", ""),
+        "X-API-Key": os.getenv("WECHAT_API_KEY", ""),
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "content": content,
+        "ats": ""
+    }
+    
+    params = {
+        "nickName": group_name or os.getenv("WECHAT_GROUP_NAME", "AI销售转人工推送群")
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=payload, headers=headers, params=params, timeout=10.0)
+            if resp.status_code == 200:
+                logger.info(f"✅ Notification sent to {params['nickName']}: {resp.json()}")
+                return True
+            else:
+                logger.error(f"❌ Failed to send notification: {resp.status_code} - {resp.text}")
+                return False
+    except Exception as e:
+        logger.error(f"❌ Error sending notification: {e}")
+        return False
 
 
 class QueryRequest(BaseModel):
@@ -78,6 +127,17 @@ async def detect_risk(request: QueryRequest):
     
     try:
         result = judge.judge_with_details(request.query)
+        
+        if result['final_result']:
+            notification_content = f"检测到需要转人工服务：\n用户问题：{request.query}"
+            if result['manual_service_requested']:
+                notification_content = f"用户主动要求转人工：\n用户问题：{request.query}"
+            elif result['price_related_query']:
+                notification_content = f"用户询问价格优惠：\n用户问题：{request.query}"
+            elif result['matched_keywords']:
+                notification_content = f"检测到投诉风险：\n用户问题：{request.query}\n匹配关键词：{result['matched_keywords']}"
+            
+            await send_wechat_group_notification(notification_content)
         
         return RiskResponse(
             is_risk=result['final_result'],
