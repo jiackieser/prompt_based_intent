@@ -39,4 +39,3 @@ class Config:
         if not cls.QWEN_API_KEY:
             raise ValueError("QWEN_API_KEY is not set in environment variables")
         return True
-
